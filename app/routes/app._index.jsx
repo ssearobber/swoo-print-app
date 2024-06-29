@@ -91,7 +91,7 @@ export const loader = async ({ request }) => {
     .sort((a, b) => b.id.localeCompare(a.id));
     return json(orders);
   } catch (error) {
-    console.error('app._index Loader Error:', error);
+    console.error('app._index Loader Error : ', error);
     return json({ error: 'Failed to fetch orders.' }, { status: 500 });
   }
 };
