@@ -69,7 +69,13 @@ async function fetchOrders(admin) {
 export const loader = async ({ request }) => {
   try {
     const { admin } = await authenticate.admin(request);
+    if (!admin) {
+      throw new Error('Admin authentication failed');
+    }
     const data = await fetchOrders(admin);
+    if (!data) {
+      throw new Error('Failed to fetch orders from Shopify');
+    }
     const orders = data.data.orders.nodes.map(node => ({
       id: node.name,
       order: node.id,
