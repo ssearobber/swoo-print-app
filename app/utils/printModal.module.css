@@ -1,0 +1,114 @@
+.print_container {
+  margin: 3rem;
+  padding: 7rem 5rem 7rem 5rem;
+  border: 1px solid #ccc;
+  box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.2);
+}
+@media print {
+  .print_page {
+    padding: 5rem 3rem 2rem 3rem;
+  }
+}
+.print_title {
+  margin-bottom: 1rem;
+  text-align: center;
+  font-size: xx-large;
+  font-weight: bold;
+}
+.customer_info {
+  display: flex;
+  width: 100%;
+  padding: 1rem 0 5rem 0;
+}
+.customer_box {
+  width: 50%;
+}
+.customer_box_2 {
+  margin-top: 3rem;
+  width: 50%;
+}
+.customer_box_2 h2 {
+  font-size: large;
+  margin-bottom: 0.5rem;
+}
+.customer_name {
+  padding-bottom: 0.5rem;
+  font-size: 1.3rem;;
+  width: 100%;
+  border-bottom: 1px solid #000;
+}
+.item_total_price {
+  width: 50%;
+}
+.item_total_price table {
+  width: 100%;
+  border-bottom: 3px double #000;
+}
+.item_total_price table th {
+  text-align: left;
+  font-size: 14pt;
+  background-color: #fff;
+  color: #000;
+  width: 60%;
+  padding-bottom: 4px;
+}
+.item_total_price table td {
+  font-size: 16pt;
+  width: 40%;
+  padding-bottom: 4px;
+  text-align: right;
+}
+.item_detail {
+  display: block;
+  width: 100%;
+  font-size: 1rem;
+  font-weight: 400;
+  clear: both;
+  padding-top: 1rem;
+}
+.item_detail table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.item_detail table th {
+  background: #ddd;
+  font-weight: 700;
+}
+.item_detail table th.item {
+  width: 50%;
+}
+.item_detail table td {
+  text-align: right;
+  padding: 2px 5px;
+}
+.item_detail table td span {
+  text-align: left;
+}
+.item_detail table th.unit_price {
+  width: 18%;
+}
+.item_detail table th.amount {
+  width: 14%;
+}
+.item_detail table th.subtotal {
+  width: 18%;
+}
+.item_detail table td, .item_detail table th, .item_detail table tr {
+  border: 1px solid #aaa;
+}
+.item_detail table tbody tr.dataline:nth-child(2n) td {
+  background-color: #f9f9f9;
+}
+.item_detail table td.space {
+  border-left-style: hidden;
+  border-bottom-style: hidden;
+}
+.modal_footer {
+  position: sticky;
+  bottom: 0;
+  background-color: white;
+  padding: 10px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #ddd;
+}
