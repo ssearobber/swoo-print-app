@@ -16,7 +16,7 @@ import PrintModal from "../utils/PrintModal";
 async function fetchOrders(admin) {
   const query = `
     query getOrders {
-      orders(first: 100, query: "fulfillment_status:unfulfilled") {
+      orders(last: 100) {
       nodes {
         name
         id
