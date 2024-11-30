@@ -9,9 +9,10 @@ import {
   IndexTable,
   useBreakpoints,
   Button,
+  Pagination,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
-import PrintModal from "../utils/PrintModal";
+import PrintModal from "../utils/printModal";
 
 async function fetchOrders(admin) {
   const query = `
@@ -105,20 +106,24 @@ const formatCurrency = (amount) => {
 
 export default function Index() {
   const orders = useLoaderData();
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ordersPerPage = 20;
 
-  // 에러 체크 추가
   if (!Array.isArray(orders)) {
     return <div>주문을 불러오는데 실패했습니다.</div>;
   }
 
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  const indexOfLastOrder = currentPage * ordersPerPage;
+  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
+  const currentOrders = orders.slice(indexOfFirstOrder, indexOfLastOrder);
 
   const resourceName = {
     singular: 'order',
     plural: 'orders',
   };
 
-  const rowMarkup = orders.map((order, index) => (
+  const rowMarkup = currentOrders.map((order, index) => (
     <IndexTable.Row id={order.id} key={order.id} position={index}>
         <IndexTable.Cell>
           <Text variant="bodyMd" fontWeight="bold" as="span">
@@ -148,7 +153,7 @@ export default function Index() {
             <IndexTable
               condensed={useBreakpoints().smDown}
               resourceName={resourceName}
-              itemCount={orders.length}
+              itemCount={currentOrders.length}
               headings={[
                 {title: '注文'},
                 {title: '日付'},
@@ -162,6 +167,15 @@ export default function Index() {
             >
               {rowMarkup}
             </IndexTable>
+            <div style={{ padding: '16px', display: 'flex', justifyContent: 'center' }}>
+              <Pagination
+                hasPrevious={currentPage > 1}
+                onPrevious={() => setCurrentPage(currentPage - 1)}
+                hasNext={indexOfLastOrder < orders.length}
+                onNext={() => setCurrentPage(currentPage + 1)}
+                label={`${indexOfFirstOrder + 1}-${Math.min(indexOfLastOrder, orders.length)} / ${orders.length}`}
+              />
+            </div>
           </Card>
         </Layout.Section>
       </Layout>
