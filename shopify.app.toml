@@ -3,7 +3,7 @@
 client_id = "031fa933df09c87c5497fc87787e643b"
 name = "swoo-print-app"
 handle = "swoo-print-app"
-application_url = "https://try-majority-hash-bear.trycloudflare.com"
+application_url = "https://dream-pepper-concentration-hear.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,9 +17,9 @@ scopes = "read_customers,read_orders,read_products"
 
 [auth]
 redirect_urls = [
-  "https://try-majority-hash-bear.trycloudflare.com/auth/callback",
-  "https://try-majority-hash-bear.trycloudflare.com/auth/shopify/callback",
-  "https://try-majority-hash-bear.trycloudflare.com/api/auth/callback"
+  "https://dream-pepper-concentration-hear.trycloudflare.com/auth/callback",
+  "https://dream-pepper-concentration-hear.trycloudflare.com/auth/shopify/callback",
+  "https://dream-pepper-concentration-hear.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]

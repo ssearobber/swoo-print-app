@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Modal, TitleBar, useAppBridge } from '@shopify/app-bridge-react';
 import { Button, Text } from "@shopify/polaris";
 import styles from "./printModal.module.css";
@@ -8,7 +8,9 @@ const formatCurrency = (amount) => {
   return new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(amount);
 };
 
-const ReceiptContent = React.forwardRef(({order}, ref) => (
+const ReceiptContent = React.forwardRef(({order}, ref) => {
+  const [customerName, setCustomerName] = useState(order.displayName || '');
+  return (
   <div className={styles.print_container}>
     <div className={styles.print_page} ref={ref}>
     <h1 className={styles.print_title}>領収書</h1>
@@ -21,7 +23,15 @@ const ReceiptContent = React.forwardRef(({order}, ref) => (
       </Text>
       <div className={styles.customer_info}>
         <div className={styles.customer_box}>
-          <h2 className={styles.customer_name}>{order.displayName}&nbsp;&nbsp;&nbsp;様</h2>
+          <div className={styles.customer_name}>
+            <input
+              type="text"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              className={styles.customer_input}
+            />
+            &nbsp;&nbsp;&nbsp;様
+          </div>
         </div>
         <div className={styles.customer_box_2}>
           <h2>1acspaces</h2>
@@ -115,7 +125,8 @@ const ReceiptContent = React.forwardRef(({order}, ref) => (
       </div>  
     </div>
   </div>
-));
+)
+});
 
 const PrintModal = ({ order, open }) => {
   const printRef = useRef();
