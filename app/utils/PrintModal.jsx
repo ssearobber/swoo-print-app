@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Modal, TitleBar, useAppBridge } from '@shopify/app-bridge-react';
 import { Button, Text } from "@shopify/polaris";
 import styles from "./printModal.module.css";
@@ -10,6 +10,11 @@ const formatCurrency = (amount) => {
 
 const ReceiptContent = React.forwardRef(({order}, ref) => {
   const [customerName, setCustomerName] = useState(order.displayName || '');
+
+  useEffect(() => {
+    setCustomerName(order.displayName || '');
+  }, [order.displayName]);
+
   return (
   <div className={styles.print_container}>
     <div className={styles.print_page} ref={ref}>
