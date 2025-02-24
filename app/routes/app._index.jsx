@@ -15,77 +15,102 @@ import { authenticate } from "../shopify.server";
 import PrintModal from "../utils/printModal";
 
 async function fetchOrders(admin, cursor = null) {
-  // REST API 엔드포인트 구성
-  let url = `/admin/api/2024-01/orders.json?limit=100&status=any`;
-  if (cursor) {
-    url += `&page_info=${cursor}`;
-  }
+  try {
+    // REST API 엔드포인트 구성
+    let url = `/admin/api/2024-01/orders.json?limit=100&status=any`;
+    if (cursor) {
+      url += `&page_info=${cursor}`;
+    }
 
-  const response = await admin.rest.get({
-    path: url
-  });
+    const response = await admin.rest.get({
+      path: url
+    });
 
-  // REST API 응답을 GraphQL 형식과 유사하게 변환
-  const orders = response.body.orders;
-  const linkHeader = response.headers.get('Link');
-  const hasNextPage = linkHeader && linkHeader.includes('rel="next"');
-  const nextCursor = hasNextPage ? 
-    linkHeader.match(/<.*[?&]page_info=([^&>]*)/)[1] : null;
-
-  return {
-    data: {
-      orders: {
-        nodes: orders.map(order => ({
-          name: order.name,
-          id: order.id.toString(),
-          processedAt: order.processed_at,
-          customer: {
-            displayName: order.customer ? `${order.customer.first_name} ${order.customer.last_name}`.trim() : null
-          },
-          displayFinancialStatus: order.financial_status,
-          displayFulfillmentStatus: order.fulfillment_status,
-          lineItems: {
-            edges: order.line_items.map(item => ({
-              node: {
-                title: item.title,
-                quantity: item.quantity,
-                originalUnitPriceSet: {
-                  presentmentMoney: {
-                    amount: item.price,
-                    currencyCode: order.currency
-                  }
-                }
-              }
-            }))
-          },
-          totalPriceSet: {
-            presentmentMoney: {
-              amount: order.total_price,
-              currencyCode: order.currency
-            }
-          },
-          subtotalPriceSet: {
-            presentmentMoney: {
-              amount: order.subtotal_price,
-              currencyCode: order.currency
-            }
-          },
-          totalTaxSet: {
-            presentmentMoney: {
-              amount: order.total_tax,
-              currencyCode: order.currency
+    // 응답 데이터 확인 및 에러 처리
+    if (!response?.body?.orders) {
+      console.error('API 응답 에러:', response);
+      return {
+        data: {
+          orders: {
+            nodes: [],
+            pageInfo: {
+              hasNextPage: false,
+              endCursor: null,
+              hasPreviousPage: false,
+              startCursor: null
             }
           }
-        })),
-        pageInfo: {
-          hasNextPage: hasNextPage,
-          endCursor: nextCursor,
-          hasPreviousPage: cursor != null,
-          startCursor: cursor
+        }
+      };
+    }
+
+    const orders = response.body.orders;
+    const linkHeader = response.headers.get('Link') || '';
+    const hasNextPage = linkHeader.includes('rel="next"');
+    const nextCursor = hasNextPage ? 
+      linkHeader.match(/<.*[?&]page_info=([^&>]*)/)?.[1] : null;
+
+    // 응답 데이터 변환
+    return {
+      data: {
+        orders: {
+          nodes: orders.map(order => ({
+            name: order.name || '',
+            id: order.id?.toString() || '',
+            processedAt: order.processed_at || '',
+            customer: {
+              displayName: order.customer ? 
+                `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim() : 
+                null
+            },
+            displayFinancialStatus: order.financial_status || '',
+            displayFulfillmentStatus: order.fulfillment_status || '',
+            lineItems: {
+              edges: (order.line_items || []).map(item => ({
+                node: {
+                  title: item.title || '',
+                  quantity: item.quantity || 0,
+                  originalUnitPriceSet: {
+                    presentmentMoney: {
+                      amount: item.price || '0',
+                      currencyCode: order.currency || 'JPY'
+                    }
+                  }
+                }
+              }))
+            },
+            totalPriceSet: {
+              presentmentMoney: {
+                amount: order.total_price || '0',
+                currencyCode: order.currency || 'JPY'
+              }
+            },
+            subtotalPriceSet: {
+              presentmentMoney: {
+                amount: order.subtotal_price || '0',
+                currencyCode: order.currency || 'JPY'
+              }
+            },
+            totalTaxSet: {
+              presentmentMoney: {
+                amount: order.total_tax || '0',
+                currencyCode: order.currency || 'JPY'
+              }
+            }
+          })),
+          pageInfo: {
+            hasNextPage: hasNextPage,
+            endCursor: nextCursor,
+            hasPreviousPage: cursor != null,
+            startCursor: cursor
+          }
         }
       }
-    }
-  };
+    };
+  } catch (error) {
+    console.error('주문 데이터 가져오기 에러:', error);
+    throw error;
+  }
 }
 
 export const loader = async ({ request }) => {
