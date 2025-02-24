@@ -20,7 +20,7 @@ async function fetchOrders(admin, cursor = null) {
       orders(
         first: 100, 
         after: $cursor, 
-        sortKey: PROCESSED_AT,
+        sortKey: ID,
         reverse: true
       ) {
         nodes {
