@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { json } from "@remix-run/node";
-import { useLoaderData} from "@remix-run/react";
+import { useLoaderData, useNavigate } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -82,6 +82,10 @@ async function fetchOrders(admin, cursor = null) {
 export const loader = async ({ request }) => {
   try {
     const { admin } = await authenticate.admin(request);
+    const url = new URL(request.url);
+    const currentPage = parseInt(url.searchParams.get("page")) || 1;
+    const pageSize = 250;
+
     if (!admin) {
       console.log('인증 상태:', admin); // 디버깅용 로그 추가
       throw new Error('Admin authentication failed');
@@ -102,6 +106,10 @@ export const loader = async ({ request }) => {
       
       hasNextPage = data.data.orders.pageInfo.hasNextPage;
       cursor = data.data.orders.pageInfo.endCursor;
+
+      if (allOrders.length >= currentPage * pageSize) {
+        break;
+      }
     }
 
     const formattedOrders = allOrders.map(node => ({
@@ -118,7 +126,15 @@ export const loader = async ({ request }) => {
     }))
     .sort((a, b) => b.id.localeCompare(a.id));
 
-    return json(formattedOrders);
+    return json({
+      orders: formattedOrders.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+      pagination: {
+        currentPage,
+        totalItems: formattedOrders.length,
+        pageSize,
+        hasNextPage
+      }
+    });
   } catch (error) {
     console.error('app._index Loader Error : ', error);
     return json({ error: 'Failed to fetch orders.' }, { status: 500 });
@@ -130,25 +146,20 @@ const formatCurrency = (amount) => {
 };
 
 export default function Index() {
-  const orders = useLoaderData();
+  const { orders, pagination } = useLoaderData();
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const ordersPerPage = 20;
+  const navigate = useNavigate();
 
-  if (!Array.isArray(orders)) {
-    return <div>주문을 불러오는데 실패했습니다.</div>;
-  }
-
-  const indexOfLastOrder = currentPage * ordersPerPage;
-  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-  const currentOrders = orders.slice(indexOfFirstOrder, indexOfLastOrder);
+  const handlePageChange = (newPage) => {
+    navigate(`?page=${newPage}`);
+  };
 
   const resourceName = {
     singular: 'order',
     plural: 'orders',
   };
 
-  const rowMarkup = currentOrders.map((order, index) => (
+  const rowMarkup = orders.map((order, index) => (
     <IndexTable.Row id={order.id} key={order.id} position={index}>
         <IndexTable.Cell>
           <Text variant="bodyMd" fontWeight="bold" as="span">
@@ -178,7 +189,7 @@ export default function Index() {
             <IndexTable
               condensed={useBreakpoints().smDown}
               resourceName={resourceName}
-              itemCount={currentOrders.length}
+              itemCount={orders.length}
               headings={[
                 {title: '注文'},
                 {title: '日付'},
@@ -194,11 +205,10 @@ export default function Index() {
             </IndexTable>
             <div style={{ padding: '16px', display: 'flex', justifyContent: 'center' }}>
               <Pagination
-                hasPrevious={currentPage > 1}
-                onPrevious={() => setCurrentPage(currentPage - 1)}
-                hasNext={indexOfLastOrder < orders.length}
-                onNext={() => setCurrentPage(currentPage + 1)}
-                label={`${indexOfFirstOrder + 1}-${Math.min(indexOfLastOrder, orders.length)} / ${orders.length}`}
+                hasPrevious={pagination.currentPage > 1}
+                hasNext={pagination.hasNextPage}
+                onPrevious={() => handlePageChange(pagination.currentPage - 1)}
+                onNext={() => handlePageChange(pagination.currentPage + 1)}
               />
             </div>
           </Card>
