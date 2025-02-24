@@ -15,75 +15,77 @@ import { authenticate } from "../shopify.server";
 import PrintModal from "../utils/printModal";
 
 async function fetchOrders(admin, cursor = null) {
-  const query = `
-    query getOrders($cursor: String) {
-      orders(
-        first: 100, 
-        after: $cursor, 
-        sortKey: ID,
-        reverse: true
-      ) {
-        nodes {
-          name
-          id
-          processedAt
-          customer {
-            displayName
-          }
-          displayFinancialStatus
-          displayFulfillmentStatus
-          lineItems(first: 100) {
-            edges {
-              node {
-                title
-                quantity
-                originalUnitPriceSet {
-                  presentmentMoney {
-                    amount
-                    currencyCode
+  // REST API 엔드포인트 구성
+  let url = `/admin/api/2024-01/orders.json?limit=100&status=any`;
+  if (cursor) {
+    url += `&page_info=${cursor}`;
+  }
+
+  const response = await admin.rest.get({
+    path: url
+  });
+
+  // REST API 응답을 GraphQL 형식과 유사하게 변환
+  const orders = response.body.orders;
+  const linkHeader = response.headers.get('Link');
+  const hasNextPage = linkHeader && linkHeader.includes('rel="next"');
+  const nextCursor = hasNextPage ? 
+    linkHeader.match(/<.*[?&]page_info=([^&>]*)/)[1] : null;
+
+  return {
+    data: {
+      orders: {
+        nodes: orders.map(order => ({
+          name: order.name,
+          id: order.id.toString(),
+          processedAt: order.processed_at,
+          customer: {
+            displayName: order.customer ? `${order.customer.first_name} ${order.customer.last_name}`.trim() : null
+          },
+          displayFinancialStatus: order.financial_status,
+          displayFulfillmentStatus: order.fulfillment_status,
+          lineItems: {
+            edges: order.line_items.map(item => ({
+              node: {
+                title: item.title,
+                quantity: item.quantity,
+                originalUnitPriceSet: {
+                  presentmentMoney: {
+                    amount: item.price,
+                    currencyCode: order.currency
                   }
                 }
               }
+            }))
+          },
+          totalPriceSet: {
+            presentmentMoney: {
+              amount: order.total_price,
+              currencyCode: order.currency
+            }
+          },
+          subtotalPriceSet: {
+            presentmentMoney: {
+              amount: order.subtotal_price,
+              currencyCode: order.currency
+            }
+          },
+          totalTaxSet: {
+            presentmentMoney: {
+              amount: order.total_tax,
+              currencyCode: order.currency
             }
           }
-          totalPriceSet {
-            presentmentMoney {
-              amount
-              currencyCode
-            }
-          }
-          subtotalPriceSet { 
-            presentmentMoney { 
-              amount 
-              currencyCode 
-            } 
-          }
-          totalTaxSet {
-            presentmentMoney {
-              amount
-              currencyCode
-            }
-          }
-        }
-        pageInfo {
-          hasNextPage
-          endCursor
-          hasPreviousPage
-          startCursor
+        })),
+        pageInfo: {
+          hasNextPage: hasNextPage,
+          endCursor: nextCursor,
+          hasPreviousPage: cursor != null,
+          startCursor: cursor
         }
       }
     }
-  `;
-  
-  const response = await admin.graphql(
-    query,
-    {
-      variables: {
-        cursor: cursor
-      }
-    }
-  );
-  return response.json();
+  };
 }
 
 export const loader = async ({ request }) => {
