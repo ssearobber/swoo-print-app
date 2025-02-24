@@ -21,8 +21,7 @@ async function fetchOrders(admin, cursor = null) {
         first: 100, 
         after: $cursor, 
         sortKey: PROCESSED_AT,
-        reverse: true,
-        query: "status:any archived_status:any (financial_status:authorized OR financial_status:paid OR financial_status:partially_paid OR financial_status:partially_refunded OR financial_status:pending OR financial_status:refunded OR financial_status:unpaid OR financial_status:voided) (fulfillment_status:fulfilled OR fulfillment_status:partial OR fulfillment_status:restocked OR fulfillment_status:unfulfilled)"
+        reverse: true
       ) {
         nodes {
           name
