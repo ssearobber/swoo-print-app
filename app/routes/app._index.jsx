@@ -91,9 +91,10 @@ export const loader = async ({ request }) => {
       throw new Error('Admin authentication failed');
     }
 
-    let allOrders = [];
+    let orders = [];
     let hasNextPage = true;
     let cursor = null;
+    let totalOrders = 0;
 
     while (hasNextPage) {
       const data = await fetchOrders(admin, cursor);
@@ -101,18 +102,24 @@ export const loader = async ({ request }) => {
         throw new Error('Failed to fetch orders from Shopify');
       }
 
-      const orders = data.data.orders.nodes;
-      allOrders = [...allOrders, ...orders];
+      const newOrders = data.data.orders.nodes;
+      totalOrders += newOrders.length;
       
+      if (currentPage === Math.ceil(totalOrders / pageSize)) {
+        orders = [...orders, ...newOrders];
+      } else if (currentPage < Math.ceil(totalOrders / pageSize)) {
+        continue;
+      }
+
       hasNextPage = data.data.orders.pageInfo.hasNextPage;
       cursor = data.data.orders.pageInfo.endCursor;
 
-      if (allOrders.length >= currentPage * pageSize) {
+      if (totalOrders >= currentPage * pageSize) {
         break;
       }
     }
 
-    const formattedOrders = allOrders.map(node => ({
+    const formattedOrders = orders.map(node => ({
       id: node.name,
       order: node.id,
       displayName: node.customer?.displayName || '顧客情報無し',
@@ -127,12 +134,13 @@ export const loader = async ({ request }) => {
     .sort((a, b) => b.id.localeCompare(a.id));
 
     return json({
-      orders: formattedOrders.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+      orders: formattedOrders,
       pagination: {
         currentPage,
-        totalItems: formattedOrders.length,
+        totalItems: totalOrders,
         pageSize,
-        hasNextPage
+        hasNextPage,
+        totalPages: Math.ceil(totalOrders / pageSize)
       }
     });
   } catch (error) {
@@ -205,8 +213,9 @@ export default function Index() {
             </IndexTable>
             <div style={{ padding: '16px', display: 'flex', justifyContent: 'center' }}>
               <Pagination
+                label={`${pagination.currentPage} / ${pagination.totalPages} 페이지`}
                 hasPrevious={pagination.currentPage > 1}
-                hasNext={pagination.hasNextPage}
+                hasNext={pagination.currentPage < pagination.totalPages}
                 onPrevious={() => handlePageChange(pagination.currentPage - 1)}
                 onNext={() => handlePageChange(pagination.currentPage + 1)}
               />
