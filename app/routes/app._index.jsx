@@ -21,8 +21,8 @@ async function fetchOrders(admin, cursor = null) {
         first: 100, 
         after: $cursor, 
         sortKey: PROCESSED_AT,
-        reverse: false,
-        query: "status:any"
+        reverse: true,
+        query: "status:any archived_status:any"
       ) {
         nodes {
           name
