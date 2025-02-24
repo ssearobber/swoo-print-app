@@ -104,12 +104,7 @@ export const loader = async ({ request }) => {
 
       const newOrders = data.data.orders.nodes;
       totalOrders += newOrders.length;
-      
-      if (currentPage === Math.ceil(totalOrders / pageSize)) {
-        orders = [...orders, ...newOrders];
-      } else if (currentPage < Math.ceil(totalOrders / pageSize)) {
-        continue;
-      }
+      orders = [...orders, ...newOrders];
 
       hasNextPage = data.data.orders.pageInfo.hasNextPage;
       cursor = data.data.orders.pageInfo.endCursor;
@@ -139,7 +134,7 @@ export const loader = async ({ request }) => {
         currentPage,
         totalItems: totalOrders,
         pageSize,
-        hasNextPage,
+        hasNextPage: hasNextPage && totalOrders >= currentPage * pageSize,
         totalPages: Math.ceil(totalOrders / pageSize)
       }
     });
