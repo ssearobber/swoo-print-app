@@ -17,7 +17,13 @@ import PrintModal from "../utils/printModal";
 async function fetchOrders(admin, cursor = null) {
   const query = `
     query getOrders($cursor: String) {
-      orders(last: 100, before: $cursor, sortKey: CREATED_AT, reverse: true, query: "created_at:>='2024-01-01' AND created_at:<='2025-12-31'") {
+      orders(
+        first: 100, 
+        after: $cursor, 
+        sortKey: CREATED_AT, 
+        reverse: true,
+        query: "created_at:>=2024-01-01T00:00:00 created_at:<=2025-12-31T23:59:59"
+      ) {
         nodes {
           name
           id
