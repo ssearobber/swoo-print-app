@@ -63,6 +63,8 @@ async function fetchOrders(admin, cursor = null) {
         pageInfo {
           hasNextPage
           endCursor
+          hasPreviousPage
+          startCursor
         }
       }
     }
