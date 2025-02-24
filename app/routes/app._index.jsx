@@ -16,7 +16,6 @@ import PrintModal from "../utils/printModal";
 
 async function fetchOrders(admin, cursor = null) {
   try {
-    // REST API 엔드포인트 구성
     let url = `/admin/api/2024-01/orders.json?limit=100&status=any`;
     if (cursor) {
       url += `&page_info=${cursor}`;
@@ -26,9 +25,11 @@ async function fetchOrders(admin, cursor = null) {
       path: url
     });
 
-    // 응답 데이터 확인 및 에러 처리
-    if (!response?.body?.orders) {
-      console.error('API 응답 에러:', response);
+    // response.body를 JSON으로 파싱
+    const responseData = await response.json();
+    
+    if (!responseData?.orders) {
+      console.error('주문 데이터가 없습니다:', responseData);
       return {
         data: {
           orders: {
@@ -44,17 +45,15 @@ async function fetchOrders(admin, cursor = null) {
       };
     }
 
-    const orders = response.body.orders;
+    // Link 헤더에서 다음 페이지 정보 추출
     const linkHeader = response.headers.get('Link') || '';
-    const hasNextPage = linkHeader.includes('rel="next"');
-    const nextCursor = hasNextPage ? 
-      linkHeader.match(/<.*[?&]page_info=([^&>]*)/)?.[1] : null;
+    const nextLink = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
+    const nextCursor = nextLink ? new URL(nextLink[1]).searchParams.get('page_info') : null;
 
-    // 응답 데이터 변환
     return {
       data: {
         orders: {
-          nodes: orders.map(order => ({
+          nodes: responseData.orders.map(order => ({
             name: order.name || '',
             id: order.id?.toString() || '',
             processedAt: order.processed_at || '',
@@ -99,9 +98,9 @@ async function fetchOrders(admin, cursor = null) {
             }
           })),
           pageInfo: {
-            hasNextPage: hasNextPage,
+            hasNextPage: !!nextCursor,
             endCursor: nextCursor,
-            hasPreviousPage: cursor != null,
+            hasPreviousPage: !!cursor,
             startCursor: cursor
           }
         }
