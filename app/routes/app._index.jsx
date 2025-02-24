@@ -20,14 +20,14 @@ async function fetchOrders(admin, cursor = null) {
       orders(
         first: 100, 
         after: $cursor, 
-        sortKey: CREATED_AT, 
+        sortKey: PROCESSED_AT,
         reverse: false,
-        query: "created_at:>=2024-01-01T00:00:00 created_at:<=2025-12-31T23:59:59"
+        query: "processed_at:>=2024-01-01T00:00:00 processed_at:<=2025-12-31T23:59:59"
       ) {
         nodes {
           name
           id
-          createdAt
+          processedAt
           customer {
             displayName
           }
@@ -118,7 +118,7 @@ export const loader = async ({ request }) => {
       console.log(`${i}페이지 데이터 로드:`, {
         커서: cursor,
         주문수: data.data.orders.nodes.length,
-        마지막주문날짜: data.data.orders.nodes[data.data.orders.nodes.length-1]?.createdAt
+        마지막주문날짜: data.data.orders.nodes[data.data.orders.nodes.length-1]?.processedAt
       });
     }
 
@@ -142,7 +142,7 @@ export const loader = async ({ request }) => {
         totalTax: formatCurrency(parseFloat(node.totalTaxSet.presentmentMoney.amount)),
         displayFinancialStatus: node.displayFinancialStatus,
         displayFulfillmentStatus: node.displayFulfillmentStatus,
-        createdAt: node.createdAt.split('T')[0],
+        processedAt: node.processedAt.split('T')[0],
         items: node.lineItems.edges,
       }))
       .sort((a, b) => b.id.localeCompare(a.id));
@@ -194,7 +194,7 @@ export default function Index() {
             {order.id}
           </Text>
         </IndexTable.Cell>
-        <IndexTable.Cell>{order.createdAt}</IndexTable.Cell>
+        <IndexTable.Cell>{order.processedAt}</IndexTable.Cell>
         <IndexTable.Cell>{order.displayName}</IndexTable.Cell>
         <IndexTable.Cell>
           <Text as="span">
