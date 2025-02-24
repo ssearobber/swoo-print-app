@@ -96,14 +96,15 @@ export const loader = async ({ request }) => {
 
     let orders = initialData.data.orders.nodes;
     let pageInfo = initialData.data.orders.pageInfo;
+    let totalOrders = orders.length;
     
-    console.log('페이지네이션 정보:', {
+    console.log('첫 페이지 데이터:', {
       현재페이지: currentPage,
       다음페이지: pageInfo.hasNextPage,
       이전페이지: pageInfo.hasPreviousPage,
       시작커서: pageInfo.startCursor,
       마지막커서: pageInfo.endCursor,
-      주문수: orders.length
+      현재_페이지_주문수: orders.length
     });
 
     // 요청된 페이지까지 데이터 가져오기
@@ -116,11 +117,14 @@ export const loader = async ({ request }) => {
       orders = [...orders, ...newOrders];
       pageInfo = nextData.data.orders.pageInfo;
       currentPageCount++;
+      totalOrders += newOrders.length;
       
       console.log('추가 페이지 로드:', {
         페이지번호: currentPageCount,
-        누적주문수: orders.length,
-        다음페이지존재: pageInfo.hasNextPage
+        누적주문수: totalOrders,
+        현재_페이지_주문수: newOrders.length,
+        다음페이지존재: pageInfo.hasNextPage,
+        마지막커서: pageInfo.endCursor
       });
     }
 
@@ -144,11 +148,11 @@ export const loader = async ({ request }) => {
       orders: formattedOrders,
       pagination: {
         currentPage,
-        totalItems: orders.length,
+        totalItems: totalOrders,
         pageSize,
         hasNextPage: pageInfo.hasNextPage,
         hasPreviousPage: currentPage > 1,
-        totalPages: Math.ceil(orders.length / pageSize)
+        totalPages: Math.ceil(totalOrders / pageSize)
       }
     });
   } catch (error) {
