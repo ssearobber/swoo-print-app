@@ -14,56 +14,68 @@ import {
 import { authenticate } from "../shopify.server";
 import PrintModal from "../utils/printModal";
 
-async function fetchOrders(admin) {
+async function fetchOrders(admin, cursor = null) {
   const query = `
-    query getOrders {
-      orders(first: 250, sortKey: CREATED_AT, reverse: true) {
-      nodes {
-        name
-        id
-        createdAt
-        customer {
-          displayName
-        }
-        displayFinancialStatus
-        displayFulfillmentStatus
-        lineItems(first: 100) {
-          edges {
-            node {
-              title
-              quantity
-              originalUnitPriceSet {
-                presentmentMoney {
-                  amount
-                  currencyCode
+    query getOrders($cursor: String) {
+      orders(first: 250, after: $cursor, sortKey: CREATED_AT, reverse: true) {
+        nodes {
+          name
+          id
+          createdAt
+          customer {
+            displayName
+          }
+          displayFinancialStatus
+          displayFulfillmentStatus
+          lineItems(first: 100) {
+            edges {
+              node {
+                title
+                quantity
+                originalUnitPriceSet {
+                  presentmentMoney {
+                    amount
+                    currencyCode
+                  }
                 }
               }
             }
           }
-        }
-        totalPriceSet {
-          presentmentMoney {
-            amount
-            currencyCode
+          totalPriceSet {
+            presentmentMoney {
+              amount
+              currencyCode
+            }
+          }
+          subtotalPriceSet { 
+            presentmentMoney { 
+              amount 
+              currencyCode 
+            } 
+          }
+          totalTaxSet {
+            presentmentMoney {
+              amount
+              currencyCode
+            }
           }
         }
-        subtotalPriceSet { 
-          presentmentMoney { 
-            amount 
-            currencyCode 
-          } 
-        }
-        totalTaxSet {
-          presentmentMoney {
-            amount
-            currencyCode
-          }
+        pageInfo {
+          hasNextPage
+          endCursor
         }
       }
     }
-  }
   `;
-  const response = await admin.graphql(query);
+  
+  const response = await admin.graphql(
+    query,
+    {
+      variables: {
+        cursor: cursor
+      }
+    }
+  );
   return response.json();
 }
 
@@ -74,26 +86,39 @@ export const loader = async ({ request }) => {
       console.log('인증 상태:', admin); // 디버깅용 로그 추가
       throw new Error('Admin authentication failed');
     }
-    const data = await fetchOrders(admin);
-    console.log('Shopify 응답:', data); // 디버깅용 로그 추가
-    if (!data) {
-      throw new Error('Failed to fetch orders from Shopify');
+
+    let allOrders = [];
+    let hasNextPage = true;
+    let cursor = null;
+
+    while (hasNextPage) {
+      const data = await fetchOrders(admin, cursor);
+      if (!data) {
+        throw new Error('Failed to fetch orders from Shopify');
+      }
+
+      const orders = data.data.orders.nodes;
+      allOrders = [...allOrders, ...orders];
+      
+      hasNextPage = data.data.orders.pageInfo.hasNextPage;
+      cursor = data.data.orders.pageInfo.endCursor;
     }
-    const orders = data.data.orders.nodes.map(node => ({
+
+    const formattedOrders = allOrders.map(node => ({
       id: node.name,
       order: node.id,
-      displayName: node.customer?.displayName || '顧客情報無し', // null 체크 추가
+      displayName: node.customer?.displayName || '顧客情報無し',
       totalPrice: formatCurrency(parseFloat(node.totalPriceSet.presentmentMoney.amount)),
       subtotalPrice: formatCurrency(parseFloat(node.subtotalPriceSet.presentmentMoney.amount)),
       totalTax: formatCurrency(parseFloat(node.totalTaxSet.presentmentMoney.amount)),
       displayFinancialStatus: node.displayFinancialStatus,
       displayFulfillmentStatus: node.displayFulfillmentStatus,
       createdAt: node.createdAt.split('T')[0],
-      items : node.lineItems.edges,
+      items: node.lineItems.edges,
     }))
     .sort((a, b) => b.id.localeCompare(a.id));
-    console.log('변환된 주문:', orders); // 디버깅용 로그 추가
-    return json(orders);
+
+    return json(formattedOrders);
   } catch (error) {
     console.error('app._index Loader Error : ', error);
     return json({ error: 'Failed to fetch orders.' }, { status: 500 });
