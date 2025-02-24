@@ -15,101 +15,75 @@ import { authenticate } from "../shopify.server";
 import PrintModal from "../utils/printModal";
 
 async function fetchOrders(admin, cursor = null) {
-  try {
-    let url = `/admin/api/2024-01/orders.json?limit=100&status=any`;
-    if (cursor) {
-      url += `&page_info=${cursor}`;
-    }
-
-    const response = await admin.rest.get({
-      path: url
-    });
-
-    // response.body를 JSON으로 파싱
-    const responseData = await response.json();
-    
-    if (!responseData?.orders) {
-      console.error('주문 데이터가 없습니다:', responseData);
-      return {
-        data: {
-          orders: {
-            nodes: [],
-            pageInfo: {
-              hasNextPage: false,
-              endCursor: null,
-              hasPreviousPage: false,
-              startCursor: null
-            }
+  const query = `
+    query getOrders($cursor: String) {
+      orders(
+        first: 100, 
+        after: $cursor, 
+        sortKey: PROCESSED_AT,
+        reverse: true
+      ) {
+        nodes {
+          name
+          id
+          processedAt
+          customer {
+            displayName
           }
-        }
-      };
-    }
-
-    // Link 헤더에서 다음 페이지 정보 추출
-    const linkHeader = response.headers.get('Link') || '';
-    const nextLink = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
-    const nextCursor = nextLink ? new URL(nextLink[1]).searchParams.get('page_info') : null;
-
-    return {
-      data: {
-        orders: {
-          nodes: responseData.orders.map(order => ({
-            name: order.name || '',
-            id: order.id?.toString() || '',
-            processedAt: order.processed_at || '',
-            customer: {
-              displayName: order.customer ? 
-                `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim() : 
-                null
-            },
-            displayFinancialStatus: order.financial_status || '',
-            displayFulfillmentStatus: order.fulfillment_status || '',
-            lineItems: {
-              edges: (order.line_items || []).map(item => ({
-                node: {
-                  title: item.title || '',
-                  quantity: item.quantity || 0,
-                  originalUnitPriceSet: {
-                    presentmentMoney: {
-                      amount: item.price || '0',
-                      currencyCode: order.currency || 'JPY'
-                    }
+          displayFinancialStatus
+          displayFulfillmentStatus
+          lineItems(first: 100) {
+            edges {
+              node {
+                title
+                quantity
+                originalUnitPriceSet {
+                  presentmentMoney {
+                    amount
+                    currencyCode
                   }
                 }
-              }))
-            },
-            totalPriceSet: {
-              presentmentMoney: {
-                amount: order.total_price || '0',
-                currencyCode: order.currency || 'JPY'
-              }
-            },
-            subtotalPriceSet: {
-              presentmentMoney: {
-                amount: order.subtotal_price || '0',
-                currencyCode: order.currency || 'JPY'
-              }
-            },
-            totalTaxSet: {
-              presentmentMoney: {
-                amount: order.total_tax || '0',
-                currencyCode: order.currency || 'JPY'
               }
             }
-          })),
-          pageInfo: {
-            hasNextPage: !!nextCursor,
-            endCursor: nextCursor,
-            hasPreviousPage: !!cursor,
-            startCursor: cursor
+          }
+          totalPriceSet {
+            presentmentMoney {
+              amount
+              currencyCode
+            }
+          }
+          subtotalPriceSet { 
+            presentmentMoney { 
+              amount 
+              currencyCode 
+            } 
+          }
+          totalTaxSet {
+            presentmentMoney {
+              amount
+              currencyCode
+            }
           }
         }
+        pageInfo {
+          hasNextPage
+          endCursor
+          hasPreviousPage
+          startCursor
+        }
       }
-    };
-  } catch (error) {
-    console.error('주문 데이터 가져오기 에러:', error);
-    throw error;
-  }
+    }
+  `;
+  
+  const response = await admin.graphql(
+    query,
+    {
+      variables: {
+        cursor: cursor
+      }
+    }
+  );
+  return response.json();
 }
 
 export const loader = async ({ request }) => {
