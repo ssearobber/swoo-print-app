@@ -87,65 +87,68 @@ export const loader = async ({ request }) => {
     const url = new URL(request.url);
     const currentPage = parseInt(url.searchParams.get("page")) || 1;
     const pageSize = 250;
-
-    if (!admin) {
-      console.log('인증 상태:', admin); // 디버깅용 로그 추가
-      throw new Error('Admin authentication failed');
+    
+    // 첫 페이지 데이터 가져오기
+    const initialData = await fetchOrders(admin);
+    if (!initialData) {
+      throw new Error('Failed to fetch orders from Shopify');
     }
 
-    let orders = [];
-    let hasNextPage = true;
-    let cursor = null;
-    let totalOrders = 0;
+    let orders = initialData.data.orders.nodes;
+    let pageInfo = initialData.data.orders.pageInfo;
+    
+    console.log('페이지네이션 정보:', {
+      현재페이지: currentPage,
+      다음페이지: pageInfo.hasNextPage,
+      이전페이지: pageInfo.hasPreviousPage,
+      시작커서: pageInfo.startCursor,
+      마지막커서: pageInfo.endCursor,
+      주문수: orders.length
+    });
 
-    while (hasNextPage) {
-      const data = await fetchOrders(admin, cursor);
-      if (!data) {
-        throw new Error('Failed to fetch orders from Shopify');
-      }
-
-      const newOrders = data.data.orders.nodes;
-      totalOrders += newOrders.length;
+    // 요청된 페이지까지 데이터 가져오기
+    let currentPageCount = 1;
+    while (pageInfo.hasNextPage && currentPageCount < currentPage) {
+      const nextData = await fetchOrders(admin, pageInfo.endCursor);
+      if (!nextData) break;
+      
+      const newOrders = nextData.data.orders.nodes;
       orders = [...orders, ...newOrders];
-
-      hasNextPage = data.data.orders.pageInfo.hasNextPage;
-      cursor = data.data.orders.pageInfo.endCursor;
-
-      console.log('페이지네이션 상태:', {
-        현재페이지: currentPage,
-        총주문수: totalOrders,
-        페이지당주문수: pageSize,
-        다음페이지존재: hasNextPage,
-        현재커서: cursor
+      pageInfo = nextData.data.orders.pageInfo;
+      currentPageCount++;
+      
+      console.log('추가 페이지 로드:', {
+        페이지번호: currentPageCount,
+        누적주문수: orders.length,
+        다음페이지존재: pageInfo.hasNextPage
       });
-
-      if (totalOrders >= currentPage * pageSize) {
-        break;
-      }
     }
 
-    const formattedOrders = orders.map(node => ({
-      id: node.name,
-      order: node.id,
-      displayName: node.customer?.displayName || '顧客情報無し',
-      totalPrice: formatCurrency(parseFloat(node.totalPriceSet.presentmentMoney.amount)),
-      subtotalPrice: formatCurrency(parseFloat(node.subtotalPriceSet.presentmentMoney.amount)),
-      totalTax: formatCurrency(parseFloat(node.totalTaxSet.presentmentMoney.amount)),
-      displayFinancialStatus: node.displayFinancialStatus,
-      displayFulfillmentStatus: node.displayFulfillmentStatus,
-      createdAt: node.createdAt.split('T')[0],
-      items: node.lineItems.edges,
-    }))
-    .sort((a, b) => b.id.localeCompare(a.id));
+    const formattedOrders = orders
+      .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+      .map(node => ({
+        id: node.name,
+        order: node.id,
+        displayName: node.customer?.displayName || '顧客情報無し',
+        totalPrice: formatCurrency(parseFloat(node.totalPriceSet.presentmentMoney.amount)),
+        subtotalPrice: formatCurrency(parseFloat(node.subtotalPriceSet.presentmentMoney.amount)),
+        totalTax: formatCurrency(parseFloat(node.totalTaxSet.presentmentMoney.amount)),
+        displayFinancialStatus: node.displayFinancialStatus,
+        displayFulfillmentStatus: node.displayFulfillmentStatus,
+        createdAt: node.createdAt.split('T')[0],
+        items: node.lineItems.edges,
+      }))
+      .sort((a, b) => b.id.localeCompare(a.id));
 
     return json({
       orders: formattedOrders,
       pagination: {
         currentPage,
-        totalItems: totalOrders,
+        totalItems: orders.length,
         pageSize,
-        hasNextPage: hasNextPage && totalOrders >= currentPage * pageSize,
-        totalPages: Math.ceil(totalOrders / pageSize)
+        hasNextPage: pageInfo.hasNextPage,
+        hasPreviousPage: currentPage > 1,
+        totalPages: Math.ceil(orders.length / pageSize)
       }
     });
   } catch (error) {
