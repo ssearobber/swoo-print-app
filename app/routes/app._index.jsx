@@ -86,9 +86,9 @@ export const loader = async ({ request }) => {
     const { admin } = await authenticate.admin(request);
     const url = new URL(request.url);
     const currentPage = parseInt(url.searchParams.get("page")) || 1;
-    const pageSize = 250;
+    const pageSize = 100; // 한 페이지당 100개로 조정
     
-    // 첫 페이지 데이터 가져오기
+    // 현재 페이지의 데이터 가져오기
     const initialData = await fetchOrders(admin);
     if (!initialData) {
       throw new Error('Failed to fetch orders from Shopify');
@@ -96,9 +96,8 @@ export const loader = async ({ request }) => {
 
     let orders = initialData.data.orders.nodes;
     let pageInfo = initialData.data.orders.pageInfo;
-    let totalOrders = orders.length;
     
-    console.log('첫 페이지 데이터:', {
+    console.log('페이지 데이터:', {
       현재페이지: currentPage,
       다음페이지: pageInfo.hasNextPage,
       이전페이지: pageInfo.hasPreviousPage,
@@ -107,29 +106,7 @@ export const loader = async ({ request }) => {
       현재_페이지_주문수: orders.length
     });
 
-    // 요청된 페이지까지 데이터 가져오기
-    let currentPageCount = 1;
-    while (pageInfo.hasNextPage && currentPageCount < currentPage) {
-      const nextData = await fetchOrders(admin, pageInfo.endCursor);
-      if (!nextData) break;
-      
-      const newOrders = nextData.data.orders.nodes;
-      orders = [...orders, ...newOrders];
-      pageInfo = nextData.data.orders.pageInfo;
-      currentPageCount++;
-      totalOrders += newOrders.length;
-      
-      console.log('추가 페이지 로드:', {
-        페이지번호: currentPageCount,
-        누적주문수: totalOrders,
-        현재_페이지_주문수: newOrders.length,
-        다음페이지존재: pageInfo.hasNextPage,
-        마지막커서: pageInfo.endCursor
-      });
-    }
-
     const formattedOrders = orders
-      .slice((currentPage - 1) * pageSize, currentPage * pageSize)
       .map(node => ({
         id: node.name,
         order: node.id,
@@ -148,11 +125,8 @@ export const loader = async ({ request }) => {
       orders: formattedOrders,
       pagination: {
         currentPage,
-        totalItems: totalOrders,
-        pageSize,
         hasNextPage: pageInfo.hasNextPage,
-        hasPreviousPage: currentPage > 1,
-        totalPages: Math.ceil(totalOrders / pageSize)
+        hasPreviousPage: currentPage > 1
       }
     });
   } catch (error) {
@@ -225,9 +199,9 @@ export default function Index() {
             </IndexTable>
             <div style={{ padding: '16px', display: 'flex', justifyContent: 'center' }}>
               <Pagination
-                label={`${pagination.currentPage} / ${pagination.totalPages} 페이지`}
-                hasPrevious={pagination.currentPage > 1}
-                hasNext={pagination.currentPage < pagination.totalPages}
+                label={`${pagination.currentPage} 페이지`}
+                hasPrevious={pagination.hasPreviousPage}
+                hasNext={pagination.hasNextPage}
                 onPrevious={() => handlePageChange(pagination.currentPage - 1)}
                 onNext={() => handlePageChange(pagination.currentPage + 1)}
               />
