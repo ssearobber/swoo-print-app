@@ -86,16 +86,29 @@ export const loader = async ({ request }) => {
     const { admin } = await authenticate.admin(request);
     const url = new URL(request.url);
     const currentPage = parseInt(url.searchParams.get("page")) || 1;
-    const pageSize = 100; // 한 페이지당 100개로 조정
+    const pageSize = 100;
     
-    // 현재 페이지의 데이터 가져오기
-    const initialData = await fetchOrders(admin);
-    if (!initialData) {
-      throw new Error('Failed to fetch orders from Shopify');
-    }
+    // 첫 페이지 데이터 가져오기
+    let cursor = null;
+    let orders = [];
+    let pageInfo = null;
 
-    let orders = initialData.data.orders.nodes;
-    let pageInfo = initialData.data.orders.pageInfo;
+    // 현재 페이지까지의 데이터 가져오기
+    for (let i = 0; i < currentPage; i++) {
+      const data = await fetchOrders(admin, cursor);
+      if (!data) {
+        throw new Error('Failed to fetch orders from Shopify');
+      }
+
+      if (i === currentPage - 1) {
+        // 현재 페이지의 데이터만 저장
+        orders = data.data.orders.nodes;
+        pageInfo = data.data.orders.pageInfo;
+      }
+      
+      // 다음 페이지를 위한 커서 업데이트
+      cursor = data.data.orders.pageInfo.endCursor;
+    }
     
     console.log('페이지 데이터:', {
       현재페이지: currentPage,
