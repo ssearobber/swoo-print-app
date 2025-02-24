@@ -22,7 +22,7 @@ async function fetchOrders(admin, cursor = null) {
         after: $cursor, 
         sortKey: PROCESSED_AT,
         reverse: false,
-        query: "processed_at:>=2024-01-01T00:00:00 processed_at:<=2025-12-31T23:59:59"
+        query: "status:any"
       ) {
         nodes {
           name
