@@ -88,35 +88,55 @@ export const loader = async ({ request }) => {
     const currentPage = parseInt(url.searchParams.get("page")) || 1;
     const pageSize = 100;
     
-    // 첫 페이지 데이터 가져오기
     let cursor = null;
     let orders = [];
     let pageInfo = null;
+    let lastSuccessfulData = null;
 
-    // 현재 페이지까지의 데이터 가져오기
-    for (let i = 0; i < currentPage; i++) {
-      const data = await fetchOrders(admin, cursor);
-      if (!data) {
-        throw new Error('Failed to fetch orders from Shopify');
+    try {
+      // 현재 페이지까지의 데이터 가져오기
+      for (let i = 0; i < currentPage; i++) {
+        const data = await fetchOrders(admin, cursor);
+        
+        if (!data?.data?.orders?.nodes) {
+          console.error('데이터 형식 오류:', data);
+          break;
+        }
+
+        lastSuccessfulData = data;
+        
+        if (i === currentPage - 1) {
+          orders = data.data.orders.nodes;
+          pageInfo = data.data.orders.pageInfo;
+        }
+        
+        if (!data.data.orders.pageInfo.hasNextPage) {
+          break;
+        }
+        
+        cursor = data.data.orders.pageInfo.endCursor;
       }
 
-      if (i === currentPage - 1) {
-        // 현재 페이지의 데이터만 저장
-        orders = data.data.orders.nodes;
-        pageInfo = data.data.orders.pageInfo;
+      // 데이터가 없는 경우 마지막 성공한 데이터 사용
+      if (orders.length === 0 && lastSuccessfulData) {
+        orders = lastSuccessfulData.data.orders.nodes;
+        pageInfo = lastSuccessfulData.data.orders.pageInfo;
+        currentPage = Math.max(1, currentPage - 1);
       }
       
-      // 다음 페이지를 위한 커서 업데이트
-      cursor = data.data.orders.pageInfo.endCursor;
+    } catch (fetchError) {
+      console.error('데이터 가져오기 오류:', fetchError);
+      throw new Error('Failed to fetch orders data');
     }
     
     console.log('페이지 데이터:', {
       현재페이지: currentPage,
-      다음페이지: pageInfo.hasNextPage,
-      이전페이지: pageInfo.hasPreviousPage,
-      시작커서: pageInfo.startCursor,
-      마지막커서: pageInfo.endCursor,
-      현재_페이지_주문수: orders.length
+      다음페이지: pageInfo?.hasNextPage || false,
+      이전페이지: currentPage > 1,
+      시작커서: pageInfo?.startCursor,
+      마지막커서: pageInfo?.endCursor,
+      현재_페이지_주문수: orders.length,
+      cursor: cursor
     });
 
     const formattedOrders = orders
@@ -138,13 +158,21 @@ export const loader = async ({ request }) => {
       orders: formattedOrders,
       pagination: {
         currentPage,
-        hasNextPage: pageInfo.hasNextPage,
+        hasNextPage: pageInfo?.hasNextPage || false,
         hasPreviousPage: currentPage > 1
       }
     });
   } catch (error) {
     console.error('app._index Loader Error : ', error);
-    return json({ error: 'Failed to fetch orders.' }, { status: 500 });
+    return json({ 
+      orders: [],
+      pagination: {
+        currentPage: 1,
+        hasNextPage: false,
+        hasPreviousPage: false
+      },
+      error: 'Failed to fetch orders.' 
+    }, { status: 500 });
   }
 };
 
