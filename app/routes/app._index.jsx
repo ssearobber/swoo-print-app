@@ -86,49 +86,36 @@ export const loader = async ({ request }) => {
     const { admin } = await authenticate.admin(request);
     const url = new URL(request.url);
     let currentPage = parseInt(url.searchParams.get("page")) || 1;
-    const pageSize = 100;
     
     let cursor = null;
     let orders = [];
     let pageInfo = null;
-    let lastSuccessfulData = null;
 
-    try {
-      // 현재 페이지까지의 데이터 가져오기
-      for (let i = 0; i < currentPage; i++) {
-        const data = await fetchOrders(admin, cursor);
-        
-        if (!data?.data?.orders?.nodes) {
-          console.error('데이터 형식 오류:', data);
-          break;
-        }
-
-        lastSuccessfulData = data;
-        
-        if (i === currentPage - 1) {
-          orders = data.data.orders.nodes;
-          pageInfo = data.data.orders.pageInfo;
-        }
-        
-        if (!data.data.orders.pageInfo.hasNextPage) {
-          break;
-        }
-        
-        cursor = data.data.orders.pageInfo.endCursor;
+    // 현재 페이지까지 순차적으로 데이터 가져오기
+    for (let i = 1; i <= currentPage; i++) {
+      const data = await fetchOrders(admin, cursor);
+      
+      if (!data?.data?.orders?.nodes) {
+        console.error('데이터 형식 오류:', data);
+        break;
       }
 
-      // 데이터가 없는 경우 마지막 성공한 데이터 사용
-      if (orders.length === 0 && lastSuccessfulData) {
-        orders = lastSuccessfulData.data.orders.nodes;
-        pageInfo = lastSuccessfulData.data.orders.pageInfo;
-        currentPage = Math.max(1, currentPage - 1);
+      if (i === currentPage) {
+        // 현재 페이지의 데이터만 저장
+        orders = data.data.orders.nodes;
+        pageInfo = data.data.orders.pageInfo;
       }
       
-    } catch (fetchError) {
-      console.error('데이터 가져오기 오류:', fetchError);
-      throw new Error('Failed to fetch orders data');
+      // 다음 페이지를 위한 커서 업데이트
+      cursor = data.data.orders.pageInfo.endCursor;
+      
+      console.log(`${i}페이지 데이터 로드:`, {
+        커서: cursor,
+        주문수: data.data.orders.nodes.length,
+        마지막주문날짜: data.data.orders.nodes[data.data.orders.nodes.length-1]?.createdAt
+      });
     }
-    
+
     console.log('페이지 데이터:', {
       현재페이지: currentPage,
       다음페이지: pageInfo?.hasNextPage || false,
