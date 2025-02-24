@@ -109,6 +109,14 @@ export const loader = async ({ request }) => {
       hasNextPage = data.data.orders.pageInfo.hasNextPage;
       cursor = data.data.orders.pageInfo.endCursor;
 
+      console.log('페이지네이션 상태:', {
+        현재페이지: currentPage,
+        총주문수: totalOrders,
+        페이지당주문수: pageSize,
+        다음페이지존재: hasNextPage,
+        현재커서: cursor
+      });
+
       if (totalOrders >= currentPage * pageSize) {
         break;
       }
