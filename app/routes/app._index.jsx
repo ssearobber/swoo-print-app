@@ -85,7 +85,7 @@ export const loader = async ({ request }) => {
   try {
     const { admin } = await authenticate.admin(request);
     const url = new URL(request.url);
-    const currentPage = parseInt(url.searchParams.get("page")) || 1;
+    let currentPage = parseInt(url.searchParams.get("page")) || 1;
     const pageSize = 100;
     
     let cursor = null;
