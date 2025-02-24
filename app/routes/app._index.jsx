@@ -22,7 +22,7 @@ async function fetchOrders(admin, cursor = null) {
         after: $cursor, 
         sortKey: PROCESSED_AT,
         reverse: true,
-        query: "processed_at:<='2025-12-31' status:any archived_status:any financial_status:any fulfillment_status:any"
+        query: "status:any archived_status:any (financial_status:authorized OR financial_status:paid OR financial_status:partially_paid OR financial_status:partially_refunded OR financial_status:pending OR financial_status:refunded OR financial_status:unpaid OR financial_status:voided) (fulfillment_status:fulfilled OR fulfillment_status:partial OR fulfillment_status:restocked OR fulfillment_status:unfulfilled)"
       ) {
         nodes {
           name
