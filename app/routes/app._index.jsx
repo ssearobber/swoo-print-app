@@ -22,7 +22,7 @@ async function fetchOrders(admin, cursor = null) {
         after: $cursor, 
         sortKey: PROCESSED_AT,
         reverse: true,
-        query: "status:any archived_status:any financial_status:any"
+        query: "status:any archived_status:any financial_status:any fulfillment_status:any"
       ) {
         nodes {
           name
